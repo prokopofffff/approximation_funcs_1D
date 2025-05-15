@@ -33,3 +33,8 @@
 
 # Qt
 *.qmake.stash
+
+moc_*.*
+basic_graph
+*.txt
+Makefile

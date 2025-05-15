@@ -1,27 +1,82 @@
 #ifndef INTERPOLATION_H
 #define INTERPOLATION_H
 
-void calculate_newton_coefficients(int n, double *x, double *f_x, double *c);
+#include <vector>
+#include <cmath>
+#include "approximation.h"
 
-double evaluate_newton_polynomial(double t, int n, double *x, double *c);
+class Interpolation {
+public:
+    enum Method {
+        NEWTON = 0,
+        AKIMA = 1,
+        BOTH = 2,
+        ERROR = 3
+    };
 
-// Function to build cubic spline interpolation
-// Parameters:
-// n - number of interpolation points
-// x - array of interpolation points (length n)
-// f - array of function values at interpolation points (length n)
-// a - array to store spline coefficients (length 4*n)
-// Second derivatives at boundaries are computed from the function
-void build_cubic_spline(int n, double *x, double *f, double *a, double (*func)(double));
+    Interpolation(double a, double b, int n, int k);
+    ~Interpolation();
 
-// Function to evaluate cubic spline at a given point
-// Parameters:
-// x_val - point to evaluate
-// a - left end of interval
-// b - right end of interval
-// n - number of interpolation points
-// x - array of interpolation points (length n)
-// coef - array of coefficients from build_cubic_spline
-double eval_cubic_spline(double x_val, double a, double b, int n, double *x, double *coef);
+    // Set function by index k
+    void setFunction(int k);
 
-#endif // INTERPOLATION_H 
+    // Calculate function value at point x
+    double calculateFunction(double x) const;
+
+    // Calculate interpolation value at point x
+    double calculateInterpolation(double x, Method method = NEWTON) const;
+
+    // Get interpolation points
+    const std::vector<double>& getPoints() const { return points; }
+    const std::vector<double>& getValues() const { return values; }
+    const std::vector<double>& getNewtonCoeffs() const { return newtonCoeffs; }
+
+    // Get function range
+    double getA() const { return a; }
+    double getB() const { return b; }
+
+    // Get current function index
+    int getCurrentFunction() const { return currentFunction; }
+
+    // Get/set number of points
+    int getN() const { return n; }
+    void setN(int newN);
+
+    // Set value at specific point
+    void setValue(size_t index, double value);
+
+    // Optimized evaluation for multiple points
+    void evaluateMultiple(const std::vector<double>& x, std::vector<double>& y, Method method = NEWTON) const;
+
+    Method getCurrentMethod() const { return currentMethod; }
+    void setCurrentMethod(Method m) { currentMethod = m; }
+
+    void setInterval(double newA, double newB) {
+        a = newA;
+        b = newB;
+        initializePoints();
+        updateCoefficients();
+    }
+
+private:
+    double a, b;
+    int n;
+    int currentFunction;
+    Method currentMethod = NEWTON;
+    std::vector<double> points;
+    std::vector<double> values;
+    std::vector<double> newtonCoeffs;
+    std::vector<double> akimaCoeffs;
+    std::vector<double> workArray;
+
+    // Initialize interpolation points and values
+    void initializePoints();
+
+    // Update polynomial coefficients
+    void updateCoefficients();
+
+    // Calculate factorial
+    double factorial(int n);
+};
+
+#endif // INTERPOLATION_H

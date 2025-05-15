@@ -1,99 +1,55 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
-#include <QtWidgets>
+#include <QWidget>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QPainterPath>
 #include "interpolation.h"
+#include "graphics.h"
 
-enum DisplayMode {
-  // ORIGINAL_AND_CHEBYSHEV, // Show original and Chebyshev interpolation
-  ORIGINAL_AND_NEWTON,    // Show original and Newton interpolation
-  ORIGINAL_AND_SPLINE,    // Show original and spline interpolation
-  ORIGINAL_AND_BOTH,      // Show original and both interpolations
-  ERROR_ONLY,             // Show errors of both methods
-  DISPLAY_MODE_COUNT      // Number of display modes
-};
-
-class Window : public QWidget
-{
-  Q_OBJECT
+class Window : public QWidget {
+    Q_OBJECT
 
 public:
-  Window (QWidget *parent);
-  ~Window();
+    Window(QWidget *parent = nullptr);
+    ~Window();
 
-  QSize minimumSizeHint () const override;
-  QSize sizeHint () const override;
-
-  int parse_command_line (int argc, char *argv[]);
-  QPointF l2g (double x_loc, double y_loc, double y_min, double y_max);
-  
-  static Window* active_instance;
-  
-  void build_interpolation_data();
-  
-  // double eval_chebyshev(double x_val);
-  double eval_newton(double x_val);
-  double eval_spline(double x_val);
-  
-  // double chebyshev_error(double x_val);
-  double newton_error(double x_val);
-  double spline_error(double x_val);
-  
-  double (*f) (double);
-  
-  void set_func_by_id();
-  
-  // Геттер для получения текущего идентификатора функции
-  int get_func_id() const { return func_id; }
+    bool parse_command_line(int argc, char *argv[]);
+    void set_func_by_id();
 
 public slots:
-  void change_func ();
-  void change_display_mode();
+    void change_func();  // Key 0
+    void change_display_mode();  // Key 1
+    void increase_scale();  // Key 2
+    void decrease_scale();  // Key 3
+    void increase_points();  // Key 4
+    void decrease_points();  // Key 5
+    void increase_perturbation();  // Key 6
+    void decrease_perturbation();  // Key 7
 
 protected:
-  void paintEvent (QPaintEvent *event) override;
-  void keyPressEvent (QKeyEvent *event) override;
-  void resizeEvent(QResizeEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
-  int func_id;
-  const char *f_name;
-  double a;
-  double b;
-  int n;
+    Interpolation *interpolation;
+    bool showOriginalFunction;
+    bool showInterpolatedFunction;
+    bool showError;
+    int currentScale;
+    int perturbationCount;
+    ScalingInfo scaling;
+    double origA, origB;
 
-  int scale_factor; 
-  double perturb_factor;
-  int perturb_point;
-
-  DisplayMode display_mode;
-  double *x_points;    
-  double *f_values;
-  double *f_perturbed;
-  // double *chebyshev_coefs;
-  double *newton_coefs;
-  double *spline_coefs;
-  
-
-  double *buffer_x;
-  double *buffer_y;
-  // double *buffer_cheb;
-  double *buffer_newton;
-  double *buffer_spline;
-  bool need_recalc;
-  
-  void draw_axes(QPainter &painter, double min_y, double max_y);
-  void draw_original_function(QPainter &painter, double min_y, double max_y);
-  void draw_chebyshev(QPainter &painter, double min_y, double max_y);
-  void draw_newton(QPainter &painter, double min_y, double max_y);
-  void draw_spline(QPainter &painter, double min_y, double max_y);
-  void draw_errors(QPainter &painter, double min_y, double max_y);
-  void draw_info_text(QPainter &painter);
-  
-  double get_f_value(int idx);
-  double get_max_abs_value();
-  
-  void calculate_residuals(double scaled_a, double scaled_b, double delta_x, double &min_y, double &max_y);
+    void drawGraph(QPainter& painter);
+    void updateDisplayInfo(QPainter& painter);
+    QString getFunctionDescription() const;
+    void updateInterpolation();
+    void updateScaling();
+    void drawFunctionFromPoints(QPainter& painter, const std::vector<double>& x,
+                              const std::vector<double>& y, const QColor& color);
 };
 
-#endif
+#endif // WINDOW_H

@@ -4,18 +4,10 @@
 #include <QAction>
 #include <QMenuBar>
 #include <QMessageBox>
-// #include <QtWidgets/QApplication>
-// #include <QtWidgets/QMainWindow>
-// #include <QtWidgets/QVBoxLayout>
-// #include <QtWidgets/QAction>
-// #include <QtWidgets/QMenuBar>
-// #include <QtWidgets/QMessageBox>
-// #include <fenv.h>
 #include "window.h"
 
 int main (int argc, char *argv[])
 {
-  // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   QApplication app (argc, argv);
 
   QMainWindow *window = new QMainWindow;
@@ -25,7 +17,7 @@ int main (int argc, char *argv[])
 
   if (graph_area->parse_command_line (argc, argv))
     {
-      QMessageBox::warning (0, "Wrong input arguments!", 
+      QMessageBox::warning (0, "Wrong input arguments!",
                             "Usage: program a b n k\n"
                             "a - left bound (double)\n"
                             "b - right bound (double)\n"
