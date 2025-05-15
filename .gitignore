@@ -38,3 +38,4 @@ moc_*.*
 basic_graph
 *.txt
 Makefile
+*.zip
