@@ -30,6 +30,7 @@ public:
     const std::vector<double>& getPoints() const { return points; }
     const std::vector<double>& getValues() const { return values; }
     const std::vector<double>& getNewtonCoeffs() const { return newtonCoeffs; }
+    double getOriginalMiddleValue() const { return originalMiddleValue; }
 
     // Get function range
     double getA() const { return a; }
@@ -68,12 +69,12 @@ private:
     std::vector<double> newtonCoeffs;
     std::vector<double> akimaCoeffs;
     std::vector<double> workArray;
-
+    double originalMiddleValue;
     // Initialize interpolation points and values
     void initializePoints();
 
     // Update polynomial coefficients
-    void updateCoefficients();
+    void updateCoefficients(int skipIndex = -1);
 
     // Calculate factorial
     double factorial(int n);

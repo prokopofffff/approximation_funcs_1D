@@ -59,7 +59,9 @@ void AkimaSpline::constructSpline(int n, const double* x, const double* f, doubl
         double w1 = calculateWeight(slopes[i], slopes[i+1]);
         double w2 = calculateWeight(slopes[i+2], slopes[i+3]);
 
+        // Improve numerical stability with a more robust comparison
         if (std::abs(w1 + w2) < 1e-10) {
+            // If weights are near zero, use the average of slopes as fallback
             tangents[i] = 0.5 * (slopes[i+1] + slopes[i+2]);
         } else {
             tangents[i] = (w1 * slopes[i+2] + w2 * slopes[i+1]) / (w1 + w2);
@@ -95,13 +97,15 @@ double AkimaSpline::evaluateSpline(double x, double a, double b, int n,
 }
 
 double AkimaSpline::calculateSlope(double x0, double x1, double y0, double y1) {
-    if (std::abs(x1 - x0) < 1e-10) return 0.0;
-    return (y1 - y0) / (x1 - x0);
+    double dx = x1 - x0;
+    if (std::abs(dx) < 1e-10) return 0.0;
+    return (y1 - y0) / dx;
 }
 
 double AkimaSpline::calculateWeight(double s1, double s2) {
     double diff = std::abs(s2 - s1);
-    return diff < 1e-10 ? 1.0 : 1.0 / diff;
+    if (diff < 1e-10) return 1.0;
+    return 1.0 / diff;
 }
 
 void AkimaSpline::calculateExtraPoints(const double* x, const double* f, int n,

@@ -13,7 +13,7 @@ int main (int argc, char *argv[])
   QMainWindow *window = new QMainWindow;
   QMenuBar *tool_bar = new QMenuBar (window);
   Window *graph_area = new Window (window);
-  QAction *action;
+  QAction *action = new QAction();
 
   if (graph_area->parse_command_line (argc, argv))
     {
@@ -23,6 +23,10 @@ int main (int argc, char *argv[])
                             "b - right bound (double)\n"
                             "n - initial number of interpolation points (int)\n"
                             "k - initial function index [0-6] (int)");
+      delete window;
+      delete graph_area;
+      delete tool_bar;
+      delete action;
       return -1;
     }
   else

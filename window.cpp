@@ -5,13 +5,14 @@
 #include <cmath>
 #include <cstdlib>
 #include <vector>
+#include <iostream>
 
 Window::Window(QWidget *parent)
     : QWidget(parent), interpolation(nullptr),
       showOriginalFunction(true), showInterpolatedFunction(true), showError(false),
       currentScale(0), perturbationCount(0) {
-    setMinimumSize(900, 700);
-    resize(900, 700);
+    setMinimumSize(600, 600);
+    resize(1280, 960);
     setFocusPolicy(Qt::StrongFocus); // Enable keyboard focus
     setAttribute(Qt::WA_OpaquePaintEvent); // Optimize painting
 
@@ -59,6 +60,12 @@ bool Window::parse_command_line(int argc, char *argv[]) {
         return true;
     }
 
+    // Delete existing interpolation object to prevent memory leak
+    if (interpolation) {
+        delete interpolation;
+        interpolation = nullptr;
+    }
+
     interpolation = new Interpolation(a, b, n, k);
     return false;
 }
@@ -71,51 +78,50 @@ void Window::set_func_by_id() {
 }
 
 void Window::change_func() {
-    if (interpolation) {
-        int current = interpolation->getCurrentFunction();
-        current = (current + 1) % 7;
-        interpolation->setFunction(current);
-        update();
-    }
+    if (!interpolation) return;
+
+    int current = interpolation->getCurrentFunction();
+    current = (current + 1) % 7;
+    interpolation->setFunction(current);
+    updateInterpolation();
+    update();
 }
 
 void Window::change_display_mode() {
-    if (interpolation) {
-        static int displayState = 0;
-        static int akimaPoints = interpolation->getN();  // Store Akima's point count
-        displayState = (displayState + 1) % 4;
+    if (!interpolation) return;
 
-        switch (displayState) {
-            case 0:  // Newton only
-                interpolation->setCurrentMethod(Interpolation::NEWTON);
-                interpolation->setN(std::min(80, interpolation->getN()));  // Limit to 80 for Newton
-                showInterpolatedFunction = true;
-                showError = false;
-                break;
-            case 1:  // Akima only
-                interpolation->setCurrentMethod(Interpolation::AKIMA);
-                interpolation->setN(akimaPoints);  // Restore Akima's point count
-                showInterpolatedFunction = true;
-                showError = false;
-                break;
-            case 2:  // Both methods
-                interpolation->setCurrentMethod(Interpolation::BOTH);
-                akimaPoints = interpolation->getN();  // Store current point count for Akima
-                interpolation->setN(std::min(80, interpolation->getN()));  // Limit to 80 for Newton
-                showInterpolatedFunction = true;
-                showError = false;
-                break;
-            case 3:  // Both methods errors
-                interpolation->setCurrentMethod(Interpolation::ERROR);
-                showInterpolatedFunction = false;
-                showError = true;
-                break;
-        }
-        update();
+    static int displayState = 0;
+    displayState = (displayState + 1) % 4;
+
+    switch (displayState) {
+        case 0:  // Newton only
+            interpolation->setCurrentMethod(Interpolation::NEWTON);
+            showInterpolatedFunction = true;
+            showError = false;
+            break;
+        case 1:  // Akima only
+            interpolation->setCurrentMethod(Interpolation::AKIMA);
+            showInterpolatedFunction = true;
+            showError = false;
+            break;
+        case 2:  // Both methods
+            interpolation->setCurrentMethod(Interpolation::BOTH);
+            showInterpolatedFunction = true;
+            showError = false;
+            break;
+        case 3:  // Both methods errors
+            interpolation->setCurrentMethod(Interpolation::ERROR);
+            showInterpolatedFunction = false;
+            showError = true;
+            break;
     }
+    updateInterpolation();
+    update();
 }
 
 void Window::increase_scale() {
+    if (!interpolation) return;
+
     currentScale++;
     double scaleFactor = std::pow(2.0, currentScale);
     double newA = origA / scaleFactor;
@@ -125,6 +131,8 @@ void Window::increase_scale() {
 }
 
 void Window::decrease_scale() {
+    if (!interpolation) return;
+
     currentScale--;
     double scaleFactor = std::pow(2.0, currentScale);
     double newA = origA / scaleFactor;
@@ -135,7 +143,7 @@ void Window::decrease_scale() {
 
 void Window::increase_points() {
     if (interpolation) {
-        int maxPoints = (interpolation->getCurrentMethod() == Interpolation::NEWTON) ? 50 : 5000;
+        int maxPoints = 10000002 / 2;
         if (interpolation->getN() < maxPoints) {
             interpolation->setN(interpolation->getN() * 2);
             updateInterpolation();
@@ -212,52 +220,87 @@ void Window::drawGraph(QPainter& painter) {
     painter.setRenderHint(QPainter::Antialiasing, false);
     double a = interpolation->getA();
     double b = interpolation->getB();
-    const int numPoints = std::min(200, width());
-    std::vector<double> x(numPoints);
-    std::vector<double> y(numPoints);
-    double step = (b - a) / (numPoints - 1);
+    const int numPointsAkima = interpolation->getN();
+    std::vector<double> xAkima(numPointsAkima);
+    std::vector<double> yAkima(numPointsAkima);
+    double stepAkima = (b - a) / (numPointsAkima - 1);
+    const int numPointsNewton = std::min(51, interpolation->getN());
+    std::vector<double> xNewton(numPointsNewton);
+    std::vector<double> yNewton(numPointsNewton);
+    double stepNewton = (b - a) / (numPointsNewton - 1);
     double maxAbsValue = 0.0;
-    for (int i = 0; i < numPoints; ++i) {
-        x[i] = a + i * step;
-        y[i] = interpolation->calculateFunction(x[i]);
-        maxAbsValue = std::max(maxAbsValue, std::abs(y[i]));
+    const int numPointsOriginal = std::min(200, width());
+    std::vector<double> x_original(numPointsOriginal);
+    std::vector<double> y_original(numPointsOriginal);
+    double step_original = (b - a) / (numPointsOriginal - 1);
+    for (int i = 0; i < numPointsOriginal - 1; ++i) {
+        x_original[i] = a + i * step_original;
+        y_original[i] = interpolation->calculateFunction(x_original[i]);
+        maxAbsValue = std::max(maxAbsValue, std::abs(y_original[i]));
     }
+    x_original[numPointsOriginal - 1] = b;
+    y_original[numPointsOriginal - 1] = interpolation->calculateFunction(b);
+    maxAbsValue = std::max(maxAbsValue, std::abs(y_original[numPointsOriginal - 1]));
+    for (int i = 0; i < numPointsAkima - 1; ++i) {
+        xAkima[i] = a + i * stepAkima;
+        yAkima[i] = interpolation->calculateFunction(xAkima[i]);
+        maxAbsValue = std::max(maxAbsValue, std::abs(yAkima[i]));
+    }
+    xAkima[numPointsAkima - 1] = b;
+    yAkima[numPointsAkima - 1] = interpolation->calculateFunction(b);
+    maxAbsValue = std::max(maxAbsValue, std::abs(yAkima[numPointsAkima - 1]));
+    for (int i = 0; i < numPointsNewton - 1; ++i) {
+        xNewton[i] = a + i * stepNewton;
+        yNewton[i] = interpolation->calculateFunction(xNewton[i]);
+        maxAbsValue = std::max(maxAbsValue, std::abs(yNewton[i]));
+    }
+    xNewton[numPointsNewton - 1] = b;
+    yNewton[numPointsNewton - 1] = interpolation->calculateFunction(b);
+    maxAbsValue = std::max(maxAbsValue, std::abs(yNewton[numPointsNewton - 1]));
     scaling.maxAbsValue = maxAbsValue;
     updateScaling();
     if (showOriginalFunction) {
-        drawFunctionFromPoints(painter, x, y, Qt::blue);
+        drawFunctionFromPoints(painter, x_original, y_original, Qt::blue);
     }
     if (showInterpolatedFunction) {
-        if (interpolation->getCurrentMethod() == Interpolation::NEWTON) {
-            interpolation->evaluateMultiple(x, y, Interpolation::NEWTON);
-            drawFunctionFromPoints(painter, x, y, Qt::red);
+        if (interpolation->getCurrentMethod() == Interpolation::NEWTON && numPointsNewton <= 50) {
+            interpolation->evaluateMultiple(xNewton, yNewton, Interpolation::NEWTON);
+            yNewton[numPointsNewton - 1] = y_original[numPointsOriginal - 1];
+            drawFunctionFromPoints(painter, xNewton, yNewton, Qt::red);
         } else if (interpolation->getCurrentMethod() == Interpolation::AKIMA) {
-            interpolation->evaluateMultiple(x, y, Interpolation::AKIMA);
-            drawFunctionFromPoints(painter, x, y, Qt::green);
+            interpolation->evaluateMultiple(xAkima, yAkima, Interpolation::AKIMA);
+            yAkima[numPointsAkima - 1] = y_original[numPointsOriginal - 1];
+            drawFunctionFromPoints(painter, xAkima, yAkima, Qt::green);
         } else if (interpolation->getCurrentMethod() == Interpolation::BOTH) {
             // Draw both methods
-            interpolation->evaluateMultiple(x, y, Interpolation::NEWTON);
-            drawFunctionFromPoints(painter, x, y, Qt::red);
-            interpolation->evaluateMultiple(x, y, Interpolation::AKIMA);
-            drawFunctionFromPoints(painter, x, y, Qt::green);
+            if (numPointsNewton <= 50) {
+                interpolation->evaluateMultiple(xNewton, yNewton, Interpolation::NEWTON);
+                yNewton[numPointsNewton - 1] = y_original[numPointsOriginal - 1];
+                drawFunctionFromPoints(painter, xNewton, yNewton, Qt::red);
+            }
+            interpolation->evaluateMultiple(xAkima, yAkima, Interpolation::AKIMA);
+            yAkima[numPointsAkima - 1] = y_original[numPointsOriginal - 1];
+            drawFunctionFromPoints(painter, xAkima, yAkima, Qt::green);
         }
     }
     if (showError) {
         // Calculate and draw Newton error only if points <= 80
-        if (interpolation->getN() <= 80) {
-            #pragma omp parallel for
-            for (int i = 0; i < numPoints; ++i) {
-                y[i] = interpolation->calculateInterpolation(x[i], Interpolation::NEWTON) - interpolation->calculateFunction(x[i]);
+        if (numPointsNewton <= 50) {
+            interpolation->evaluateMultiple(xNewton, yNewton, Interpolation::NEWTON);
+            for (int i = 0; i < numPointsNewton - 1; ++i) {
+                yNewton[i] = yNewton[i] - interpolation->calculateFunction(xNewton[i]);
             }
-            drawFunctionFromPoints(painter, x, y, Qt::magenta);
+            yNewton[numPointsNewton - 1]  = 0;
+            drawFunctionFromPoints(painter, xNewton, yNewton, Qt::magenta);
         }
 
         // Calculate and draw Akima error
-        #pragma omp parallel for
-        for (int i = 0; i < numPoints; ++i) {
-            y[i] = interpolation->calculateInterpolation(x[i], Interpolation::AKIMA) - interpolation->calculateFunction(x[i]);
+        interpolation->evaluateMultiple(xAkima, yAkima, Interpolation::AKIMA);
+        for (int i = 0; i < numPointsAkima - 1; ++i) {
+            yAkima[i] = yAkima[i] - interpolation->calculateFunction(xAkima[i]);
         }
-        drawFunctionFromPoints(painter, x, y, Qt::cyan);
+        yAkima[numPointsAkima - 1] = 0;
+        drawFunctionFromPoints(painter, xAkima, yAkima, Qt::cyan);
     }
     drawAxes(painter, this, scaling, a, b);
 }
@@ -376,22 +419,31 @@ void Window::updateInterpolation() {
     if (!interpolation) return;
 
     // Apply perturbation if needed
-    if (perturbationCount != 0) {
-        double maxValue = 0.0;
-        const auto& points = interpolation->getPoints();
-        const auto& values = interpolation->getValues();
+    const auto& points = interpolation->getPoints();
+    const auto& values = interpolation->getValues();
 
-        // Find maximum absolute value
-        for (size_t i = 0; i < points.size(); ++i) {
-            maxValue = std::max(maxValue, std::abs(values[i]));
-        }
+    // Check for empty vectors
+    if (points.empty() || values.empty()) return;
 
-        // Apply perturbation to middle point
-        size_t middleIndex = points.size() / 2;
-        double perturbation = perturbationCount * 0.1 * maxValue;
-        interpolation->setValue(middleIndex, values[middleIndex] + perturbation);
+    double maxValue = 0.0;
+
+    // Find maximum absolute value
+    for (size_t i = 0; i < points.size(); ++i) {
+        if(perturbationCount != 0 && i == points.size() / 2) continue;
+        maxValue = std::max(maxValue, std::abs(values[i]));
     }
 
+    double max = maxValue;
+
+    // Apply perturbation to middle point (safely)
+    if (points.size() > 0) {
+        size_t middleIndex = points.size() / 2;
+        double perturbation = perturbationCount * 0.1 * maxValue;
+        interpolation->setValue(middleIndex, interpolation->getOriginalMiddleValue() + perturbation);
+        max = std::max(std::abs(interpolation->getOriginalMiddleValue() + perturbation), maxValue);
+    }
+    scaling.maxAbsValue = std::max(max, scaling.maxAbsValue);
+    updateScaling();
     update();
 }
 
@@ -413,13 +465,21 @@ void Window::updateScaling() {
         minY = std::min(minY, y);
         maxY = std::max(maxY, y);
     }
-    if (maxY - minY < 1e-12) {
-        maxY += 1.0;
-        minY -= 1.0;
+
+    // Ensure we have a reasonable range for Y values
+    if (std::abs(maxY - minY) < 1e-12) {
+        maxY = std::max(maxY + 1.0, 1.0);
+        minY = std::min(minY - 1.0, -1.0);
     }
+
     scaling.maxAbsValue = std::max(std::abs(minY), std::abs(maxY));
     scaling.scaleX = (w - 2 * margin) / (b - a); // fill width
-    scaling.scaleY = (h - 2 * margin) / (maxY - minY);
+
+    // Protect against division by zero
+    double yRange = maxY - minY;
+    if (yRange < 1e-12) yRange = 2.0; // Default range if too small
+
+    scaling.scaleY = (h - 2 * margin) / yRange;
     scaling.offsetX = margin - a * scaling.scaleX;
     scaling.offsetY = margin - minY * scaling.scaleY;
 }

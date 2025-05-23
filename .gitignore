@@ -39,3 +39,10 @@ basic_graph
 *.txt
 Makefile
 *.zip
+*.Debug
+*.Release
+
+.vscode
+
+debug/
+release/
