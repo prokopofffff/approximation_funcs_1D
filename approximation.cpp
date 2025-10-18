@@ -13,7 +13,11 @@ void constructNewtonPolynomial(int n, const double* x, const double* f, double* 
     // Calculate divided differences
     for (int j = 1; j < n; ++j) {
         for (int i = 0; i < n - j; ++i) {
-            work[i + j * n] = (work[i + 1 + (j - 1) * n] - work[i + (j - 1) * n]) / (x[i + j] - x[i]);
+            if (std::abs(x[i + j] - x[i]) < 1e-10) {
+                work[i + j * n] = 0.0;
+            } else {
+                work[i + j * n] = (work[i + 1 + (j - 1) * n] - work[i + (j - 1) * n]) / (x[i + j] - x[i]);
+            }
         }
     }
 
@@ -140,9 +144,14 @@ void AkimaSpline::calculateSegmentCoefficients(double x0, double x1, double y0, 
     coeffs[1] = m0;  // b
 
     // Calculate c and d coefficients
-    double t = (dy / dx - m0) / dx;
-    coeffs[2] = (3*t - (m1 - m0)/(dx)) / dx;  // c
-    coeffs[3] = ((m1 - m0)/(dx) - 2*t) / dx;  // d
+    if (std::abs(dx) < 1e-10) {
+        coeffs[2] = 0.0;
+        coeffs[3] = 0.0;
+    } else {
+        double t = (dy / dx - m0) / dx;
+        coeffs[2] = (3*t - (m1 - m0)/(dx)) / dx;  // c
+        coeffs[3] = ((m1 - m0)/(dx) - 2*t) / dx;  // d
+    }
 }
 
 int AkimaSpline::findSegment(double x, const double* points, int n) {

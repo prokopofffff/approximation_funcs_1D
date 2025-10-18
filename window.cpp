@@ -17,24 +17,24 @@ Window::Window(QWidget *parent)
     setAttribute(Qt::WA_OpaquePaintEvent); // Optimize painting
 
     // Initialize with default values
-    double a = -1.0;
-    double b = 1.0;
-    int n = 10;
-    int k = 0;
+    // double a = -1.0;
+    // double b = 1.0;
+    // int n = 10;
+    // int k = 0;
 
-    origA = a;
-    origB = b;
-    interpolation = new Interpolation(a, b, n, k);
+    // origA = a;
+    // origB = b;
+    // interpolation = new Interpolation(a, b, n, k);
 
-    // Initialize scaling info
-    scaling.scaleX = 1.0;
-    scaling.scaleY = 1.0;
-    scaling.offsetX = 1.0;
-    scaling.offsetY = 1.0;
-    scaling.maxAbsValue = 1.0;
+    // // Initialize scaling info
+    // scaling.scaleX = 1.0;
+    // scaling.scaleY = 1.0;
+    // scaling.offsetX = 1.0;
+    // scaling.offsetY = 1.0;
+    // scaling.maxAbsValue = 1.0;
 
-    // Calculate initial scaling
-    updateScaling();
+    // // Calculate initial scaling
+    // updateScaling();
 }
 
 Window::~Window() {
@@ -65,8 +65,19 @@ bool Window::parse_command_line(int argc, char *argv[]) {
         delete interpolation;
         interpolation = nullptr;
     }
+    origA = a;
+    origB = b;
 
     interpolation = new Interpolation(a, b, n, k);
+
+    scaling.scaleX = 1.0;
+    scaling.scaleY = 1.0;
+    scaling.offsetX = 1.0;
+    scaling.offsetY = 1.0;
+    scaling.maxAbsValue = 1.0;
+
+    updateScaling();
+
     return false;
 }
 
